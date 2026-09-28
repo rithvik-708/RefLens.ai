@@ -1,0 +1,27 @@
+# Core Deep Learning & Acceleration
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.3.1
+torchvision==0.18.1
+torchaudio==2.3.1
+onnxscript
+onnx
+
+# OpenCV 5 Preview / Nightly (or standard wheel)
+opencv-python-headless>=5.0.0
+
+# Data Ingestion & Sports Datasets
+SoccerNet>=0.1.58
+python-dotenv>=1.0.1
+
+# Detection, Tracking & Numerical Backend
+ultralytics>=8.2.0
+numpy>=1.26.0
+scipy>=1.13.0
+filterpy>=1.4.5
+
+# Web Backend & Agent Tooling
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+pydantic>=2.7.0
+loguru>=0.7.2
+rich>=13.7.1

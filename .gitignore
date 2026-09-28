@@ -1,0 +1,28 @@
+# Python environments
+venv/
+venv312/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Dependencies and IDE
+.env
+.vscode/
+.idea/
+
+# Large files and models
+*.onnx
+*.pt
+*.mkv
+*.mp4
+*.weights
+
+# Data and Outputs
+dataset/
+reflens/dataset/
+reflens/outputs/
+outputs/
+
+# Logs
+*.log
