@@ -4,13 +4,20 @@ from loguru import logger
 from src.vision.stream_reader import VideoStreamIngest
 from src.detection.detector import LightweightDetector
 from src.detection.tracker import PerceptionTracker
+from src.detection.team_classifier import TeamClassifier
 
 class PerceptionEngine:
     def __init__(self, model_path: str, source_video: str, output_video: str):
         self.ingest = VideoStreamIngest(source_video, batch_size=1)
         self.detector = LightweightDetector(model_path)
         self.tracker = PerceptionTracker(frame_rate=int(self.ingest.fps))
+        self.team_classifier = TeamClassifier()
         self.output_video = output_video
+        self.team_colors = {
+            0: (255, 50, 50),   # Team 0: Blue
+            1: (50, 50, 255),   # Team 1: Red
+            None: (200, 200, 200) # Unknown: Gray
+        }
         
         self.writer = None
         self.metrics = {
@@ -72,14 +79,32 @@ class PerceptionEngine:
                 for track_id, entity in active_tracks.items():
                     latest_state = entity.history[-1]
                     if latest_state.frame_id == meta.frame_id:
-                        x1, y1, x2, y2 = map(int, latest_state.bbox)
-                        
-                        color = (0, 0, 255) if entity.class_id == 32 else (255, 0, 0)
-                        cv2.rectangle(vis_frame, (x1, y1), (x2, y2), color, 2)
-                        
-                        label = f"ID:{track_id} | Vx:{latest_state.v_x:.1f} Vy:{latest_state.v_y:.1f}"
-                        cv2.putText(vis_frame, label, (x1, y1 - 10), 
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                        if entity.class_id == 0:  # If person
+                            # Classify current frame crop
+                            classification = self.team_classifier.classify(frame, latest_state.bbox, track_id)
+                            latest_state.team_classification = classification
+                            
+                            if classification.team_id is not None:
+                                entity.team_history.append(classification.team_id)
+                            
+                            # Retrieve temporal aggregated identity
+                            agg_team = entity.aggregated_team_id
+                            agg_conf = entity.aggregated_team_confidence
+                            
+                            # Visualization
+                            x1, y1, x2, y2 = map(int, latest_state.bbox)
+                            color = self.team_colors.get(agg_team, self.team_colors[None])
+                            
+                            cv2.rectangle(vis_frame, (x1, y1), (x2, y2), color, 2)
+                            label = f"ID: {track_id} | T: {agg_team if agg_team is not None else 'N/A'} | C: {agg_conf:.2f}"
+                            cv2.putText(vis_frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                        else:
+                            x1, y1, x2, y2 = map(int, latest_state.bbox)
+                            color = (0, 0, 255)  # Ball
+                            cv2.rectangle(vis_frame, (x1, y1), (x2, y2), color, 2)
+                            label = f"ID:{track_id} | Vx:{latest_state.v_x:.1f} Vy:{latest_state.v_y:.1f}"
+                            cv2.putText(vis_frame, label, (x1, y1 - 10), 
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
                 
                 self.writer.write(vis_frame)
                 
