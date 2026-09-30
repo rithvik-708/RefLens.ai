@@ -1,0 +1,108 @@
+{
+    "image_size": [
+        1280,
+        720
+    ],
+    "landmarks": [
+        {
+            "name": "TOP_MID",
+            "image": [
+                640.0,
+                165.0
+            ],
+            "pitch": [
+                52.5,
+                0.0
+            ]
+        },
+        {
+            "name": "BOTTOM_MID",
+            "image": [
+                595.0,
+                705.0
+            ],
+            "pitch": [
+                52.5,
+                68.0
+            ]
+        },
+        {
+            "name": "CENTER_MARK",
+            "image": [
+                620.0,
+                380.0
+            ],
+            "pitch": [
+                52.5,
+                34.0
+            ]
+        },
+        {
+            "name": "LEFT_PENALTY_TOP_RIGHT",
+            "image": [
+                130.0,
+                235.0
+            ],
+            "pitch": [
+                16.5,
+                13.84
+            ]
+        },
+        {
+            "name": "LEFT_PENALTY_BOTTOM_RIGHT",
+            "image": [
+                45.0,
+                630.0
+            ],
+            "pitch": [
+                16.5,
+                54.16
+            ]
+        },
+        {
+            "name": "RIGHT_PENALTY_TOP_LEFT",
+            "image": [
+                1155.0,
+                235.0
+            ],
+            "pitch": [
+                88.5,
+                13.84
+            ]
+        },
+        {
+            "name": "RIGHT_PENALTY_BOTTOM_LEFT",
+            "image": [
+                1235.0,
+                630.0
+            ],
+            "pitch": [
+                88.5,
+                54.16
+            ]
+        }
+    ],
+    "homography": [
+        [
+            0.08554433349162259,
+            0.03385654341721701,
+            -0.9334982468583158
+        ],
+        [
+            0.0014613257081155739,
+            0.16460134881460817,
+            -24.821191224025345
+        ],
+        [
+            4.7589301799244126e-05,
+            0.0005761350401112398,
+            1.0
+        ]
+    ],
+    "metrics": {
+        "mean_reprojection_error_m": 2.706743279617167,
+        "median_reprojection_error_m": 2.9213728449939564,
+        "max_reprojection_error_m": 3.9383237425442577,
+        "calibration_valid": true
+    }
+}

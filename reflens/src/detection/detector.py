@@ -5,7 +5,7 @@ from loguru import logger
 from src.detection.types import Detection
 
 class LightweightDetector:
-    def __init__(self, model_path: str, conf_threshold: float = 0.45, nms_threshold: float = 0.4):
+    def __init__(self, model_path: str, conf_threshold: float = 0.35, nms_threshold: float = 0.4, thresholds: dict = None):
         """
         Initializes an OpenCV 5 DNN instance running an ONNX YOLOv8 model.
         """
@@ -13,7 +13,7 @@ class LightweightDetector:
         self.nms_threshold = nms_threshold
         self.target_classes = {0: "person", 32: "sports_ball"}
         self.debug = False
-        self.thresholds = None
+        self.thresholds = thresholds if thresholds is not None else {0: 0.35, 32: 0.15}
         self.last_max_ball_conf = 0.0
         
         logger.info(f"Loading ONNX model into OpenCV DNN: {model_path}")
@@ -54,57 +54,68 @@ class LightweightDetector:
         if self.debug:
             logger.debug(f"[DEBUG] Transposed output shape: {output.shape}")
         
-        class_ids = []
-        confidences = []
+        classes_scores = output[:, 4:]
+        class_ids = np.argmax(classes_scores, axis=1)
+        confidences = np.max(classes_scores, axis=1)
+        
+        # Track max raw ball confidence for debugging
+        ball_mask = (class_ids == 32)
+        if np.any(ball_mask):
+            self.last_max_ball_conf = float(np.max(confidences[ball_mask]))
+        else:
+            self.last_max_ball_conf = 0.0
+
+        if self.debug:
+            logger.debug(f"[DEBUG] Max raw BALL confidence in frame: {self.last_max_ball_conf:.4f}")
+
+        # Basic vectorized thresholding mask
+        min_thresh = self.conf_threshold
+        if self.thresholds:
+            min_thresh = min(self.thresholds.values())
+            
+        target_ids = list(self.target_classes.keys())
+        mask = (confidences >= min_thresh) & np.isin(class_ids, target_ids)
+        
+        # Filter arrays
+        valid_output = output[mask]
+        valid_class_ids = class_ids[mask]
+        valid_confidences = confidences[mask]
+        
         boxes = []
+        final_class_ids = []
+        final_confidences = []
         
-        max_raw_ball_conf = 0.0
-        
-        for row in output:
-            classes_scores = row[4:]
-            class_id = np.argmax(classes_scores)
-            confidence = classes_scores[class_id]
+        for i in range(len(valid_output)):
+            c_id = int(valid_class_ids[i])
+            conf = float(valid_confidences[i])
             
-            if class_id == 32 and confidence > max_raw_ball_conf:
-                max_raw_ball_conf = confidence
-                
-            threshold = self.conf_threshold
-            if self.thresholds and class_id in self.thresholds:
-                threshold = self.thresholds[class_id]
-            
-            if class_id in self.target_classes and confidence >= threshold:
-                x, y, w, h = row[0], row[1], row[2], row[3]
+            # Apply per-class thresholding if specified
+            thresh = self.thresholds[c_id] if self.thresholds and c_id in self.thresholds else self.conf_threshold
+            if conf >= thresh:
+                x, y, w, h = valid_output[i, 0], valid_output[i, 1], valid_output[i, 2], valid_output[i, 3]
                 
                 left = int((x - w / 2) * x_factor)
                 top = int((y - h / 2) * y_factor)
                 width = int(w * x_factor)
                 height = int(h * y_factor)
                 
-                class_ids.append(int(class_id))
-                confidences.append(float(confidence))
                 boxes.append([left, top, width, height])
+                final_class_ids.append(c_id)
+                final_confidences.append(conf)
                 
         # NMS
-        # For multiple classes, ideally NMS should be per-class. We will pass a single min threshold to NMSBoxes.
-        min_thresh = self.conf_threshold
-        if self.thresholds:
-            min_thresh = min(self.thresholds.values())
-            
-        indices = cv2.dnn.NMSBoxes(boxes, confidences, min_thresh, self.nms_threshold)
+        indices = cv2.dnn.NMSBoxes(boxes, final_confidences, min_thresh, self.nms_threshold)
         detections = []
-        self.last_max_ball_conf = max_raw_ball_conf
         
-        if self.debug:
-            logger.debug(f"[DEBUG] Max raw BALL confidence in frame: {max_raw_ball_conf:.4f}")
         if len(indices) > 0:
             for i in indices.flatten():
                 box = boxes[i]
                 left, top, width, height = box[0], box[1], box[2], box[3]
                 detections.append(Detection(
                     bbox=np.array([left, top, left + width, top + height]),
-                    confidence=confidences[i],
-                    class_id=class_ids[i],
-                    class_name=self.target_classes[class_ids[i]]
+                    confidence=final_confidences[i],
+                    class_id=final_class_ids[i],
+                    class_name=self.target_classes[final_class_ids[i]]
                 ))
                 
         if self.debug:
